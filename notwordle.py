@@ -2,66 +2,64 @@ from bs4 import BeautifulSoup
 import sys
 import requests
 import datetime
-import time
+from textblob import TextBlob
 
-def spellingBee(date):
-    url = f"https://ladypuzzle.pro/spelling-bee-answers-hints/{date}"
-    response = requests.get(url)
+def wordle_finder(date):
+    try:
+        url = 'https://www.stadafa.com/2021/09/every-worlde-word-so-far-updated-daily.html'
+        response = requests.get(url)
+        soup = BeautifulSoup(response.text,"html.parser")
+        body = soup.find('div',class_="post-body entry-content float-container")
+        if body:
+            lines = body.find_all('p')
+            for line in lines:
+                if date in line.get_text():
+                    sentence = list(str(line))
+                    word = []
+                    for i, char in enumerate(sentence):
+                        if char == "-":
+                            word.pop()
+                            break
+                        word.append(char)
+        for i in range (len(word)):
+            if word[i] == " ":
+                del word[0:i+1]
+                break
+        word_str = ("".join(word))
+        attempts = 1
+        print("Welcome to Ryan's Knockoff Wordle! To play this game, enter a 5 letter word. You have 6 chances to guess the word.")
+        print("Ready?")
+        while attempts <= 6:
+            guess = input(f"Guess #{attempts}: ").upper()
+            spellCheck = str(TextBlob(guess).correct()).upper()
+            if guess != spellCheck:
+                guess = (input(f"Guess #{attempts} (Try Again): ").upper())
+            if len(guess) != 5:
+                guess = (input(f"Guess #{attempts} (Try Again): ").upper())
+                continue
 
-    soup = BeautifulSoup(response.text,"html.parser")
-    divs = soup.find_all('div',class_="tracking-widest font-bold hidden")
-    divs += soup.find_all('div', class_="tracking-widest font-semibold")
-
-    words = []
-    for div in divs:
-        word = div.get('data-word')
-        words.append(word)
-
-    texts = soup.find_all('text', class_="cell-letter svelte-y879vq")
-    
-    letters = []
-    for text in texts:
-        letter = text.text.strip()
-        letters.append(letter)
-    points = 0
-    print(f"YOU NEED TO INCLUDE THE FIRST LETTER: {letters[0]}\nCAN BE ANYWHERE IN THE WORD...\n")
-    time.sleep(5)
-    while True:
-        guess = (input(f"{letters}\nGuess the Word (q to quit): ").upper())
-        if guess == "Q":
-            print("YOU GIVE UP")
-            total_points = points
-            for word in range (len(words)):
-                total_points += len(words[word])
-            print(f"TOTAL POINTS: {points}/{total_points}")
-            print("WORDS you did not guess:")
-            time.sleep(1)
-            print(f"{words}")
-            break
-        while len(guess)<4 or guess not in words:
-            guess = (input(f"\n{letters}\nPlease Try Again (q to quit): ").upper())
-            if guess == "Q":
-                print("YOU GIVE UP")
-                total_points = points
-                for word in range (len(words)):
-                    total_points += len(word)
-                print(f"TOTAL POINTS: {points}/{total_points}")
-                print("WORDS you did not guess:")
-                time.sleep(1)
-                print(f"{words}")
-                break            
-        else:
-            if len(guess) == 4:
-                points+=1
+            if guess == word_str:
+                print(5*u'\u2705')
+                print(f"You guessed the word: {word_str}")
+                return
             else:
-                points+=len(guess)
-            print(f"Points: {points}")
-            words.remove(guess)
+                closeness_str = ""
+                guess = list(guess)
+                for i in range (len(word)):
+                    if word[i] == guess[i]:
+                        closeness_str += u'\u2705'
+                    elif word[i] in guess:
+                        closeness_str += '\U0001F7E8'
+                    else:
+                        closeness_str += u'\u274C'
+                print(closeness_str)
+            attempts +=1
+        print(f"The word was: {word_str}")
 
-date_year = int(input("Enter year (ex. 2025): "))
-date_month = int(input("Enter month (ex. 1-12): "))
-date_day = int(input("Enter day (ex. 1-31): "))
-date_input = datetime.datetime(date_year,date_month,date_day)
-year, month, day = date_input.strftime("%Y"), date_input.strftime("%m"), date_input.strftime("%d")
-date_str = f"{year}-{month}-{day}"
-spellingBee(date_str)
+    except requests.exceptions.RequestException as e:
+        print(f"Failed to Fetch Data: {e}", file=sys.stderr)
+
+date = datetime.datetime(2025,2,9)
+month, day, year = date.strftime("%B"), int(date.strftime("%d")), date.strftime("%Y")
+date_str = f"{day} {month} {year}"
+wordle_finder(date_str)
